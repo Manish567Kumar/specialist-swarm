@@ -1,83 +1,104 @@
-# Option 3 — Specialist Swarm
+<div align="center">
 
-**Concept landed:** Skills, plugins & sub-agents
-**Tech:** [Claude Managed Agents multi-agent](https://platform.claude.com/docs/en/managed-agents/multi-agent) + [custom Skills](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview) + the pre-built [docx skill](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/quickstart)
-**Time:** 60 minutes
-**Output:** A coordinator agent that fans work out to 3-5 specialist sub-agents, each with its own skills, that assemble a real branded Word document.
+# 🐝 Specialist Swarm
 
-## The pitch
+### A coordinator agent that fans an RFP out to a team of specialist sub-agents — and gets back a finished, branded proposal
 
-This is the architecture that wins the next $50M transformation deal: **coordinator + specialists + skills**. It maps directly to how every services firm structures real work. A senior partner orchestrates; specialists (legal, pricing, technical) own their lanes; the senior partner synthesises and delivers.
+[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Claude](https://img.shields.io/badge/Claude-Managed%20Agents-D97757?logo=anthropic&logoColor=white)](https://platform.claude.com/docs/en/managed-agents/multi-agent)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+![Status](https://img.shields.io/badge/status-demo%20%2F%20R%26D-orange)
 
-You're going to build exactly that, in 60 minutes, around a Deal Desk scenario. Drop an RFP in, get a branded response doc out, watch the parallelism happen in real time on the events stream.
+*One senior partner orchestrates. Specialists own their lanes. The work comes back assembled.*
 
-## Setup (5 min)
+[The idea](#-the-idea) • [Architecture](#-architecture) • [Quick Start](#-quick-start) • [Scenarios](#-scenarios) • [Stretch goals](#-stretch-goals)
 
-You need a workspace API key on the Console (multi-agent is currently in research preview — your workspace may need to be granted access).
+</div>
+
+---
+
+## 💡 The idea
+
+This is the architecture behind how real services firms run big deals: **a coordinator + specialists + skills.** A senior partner orchestrates; specialists (pricing, legal, technical, competitive) own their lanes; the partner synthesises everything into one deliverable.
+
+Specialist Swarm builds exactly that around a **Deal Desk** scenario. Drop an RFP in, and a coordinator agent delegates to 3–5 specialist sub-agents **in parallel**, then assembles their outputs into a single branded Word document — while you watch the fan-out happen live on the event stream.
+
+Built on [Claude Managed Agents (multi-agent)](https://platform.claude.com/docs/en/managed-agents/multi-agent) + [custom Agent Skills](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview).
+
+## 🏗️ Architecture
+
+```
+                   ┌──────────────────────────┐
+   RFP  ─────────▶ │   Coordinator (Senior     │
+                   │   Partner, Claude Opus)   │
+                   └────────────┬─────────────┘
+              delegates in parallel │
+        ┌──────────────┬───────────┼───────────┬──────────────┐
+        ▼              ▼           ▼            ▼              
+  ┌───────────┐ ┌───────────┐ ┌──────────┐ ┌──────────────┐
+  │  Pricing  │ │   Legal   │ │Technical │ │ Competitive  │
+  │Specialist │ │ Reviewer  │ │   Fit    │ │Intel Analyst │
+  └─────┬─────┘ └─────┬─────┘ └────┬─────┘ └──────┬───────┘
+        │ pricing-    │ legal-     │ product-     │ competitive-
+        │ playbook    │ checklist  │ overview     │ intel  (Skills)
+        └─────────────┴────────────┴──────────────┘
+                          │ synthesised
+                          ▼
+              📄 Branded proposal-response.docx
+```
+
+Each specialist has its own narrow system prompt, its own model (Opus for the coordinator, Sonnet for reasoning specialists, Haiku for the quick competitive lookup), and its own **Skill** that encodes its domain rules.
+
+## ✨ What's inside
+
+- 🎯 **`create_specialists.py`** — spins up 4 specialist sub-agents, each with a focused prompt + toolset
+- 🧠 **`create_coordinator.py`** — creates the coordinator with a `multiagent: coordinator` roster
+- 📦 **`upload_skills.py`** — packages and uploads the custom Skills in `skills/`
+- ▶️ **`run_deal_desk.py`** — runs the full swarm against a synthetic RFP and streams the parallel fan-out
+- 🗂️ **`synthetic-data/`** — a ready-to-go Acme Corp RFP + past-wins + product overview
+
+## 🚀 Quick Start
 
 ```bash
-cd 03-specialist-swarm
+git clone https://github.com/Manish567Kumar/specialist-swarm.git
+cd specialist-swarm
+
 pip install -r requirements.txt
-export ANTHROPIC_API_KEY="sk-ant-..."
+export ANTHROPIC_API_KEY="sk-ant-..."   # multi-agent is in research preview
+
+python create_specialists.py    # 1. create the 4 specialists
+python upload_skills.py          # 2. upload their domain skills
+python create_coordinator.py     # 3. create the coordinator + roster
+python run_deal_desk.py          # 4. run the deal, watch the fan-out
 ```
 
-## Pick a scenario card
+By the end you'll have a branded `outputs/proposal-response.docx`, generated by a coordinator and specialists who each used their own skill.
 
-Three cards in [`scenario-cards.md`](./scenario-cards.md). Each gives you a coordinator + a different roster of specialists. Pick one. Different teams should pick different cards.
+> ⚠️ **Requires access** to Claude's Managed Agents multi-agent preview on your workspace/API key.
 
-## Core build (25 min)
+## 🎴 Scenarios
 
-1. **Create the specialists.** Run `python create_specialists.py`. This creates 3-4 sub-agents (Pricing, Legal, Technical Fit, Competitive) and saves their IDs to `.specialist_ids.json`.
+Pick one scenario card (see [`scenario-cards.md`](./scenario-cards.md)):
 
-2. **Create the coordinator.** Run `python create_coordinator.py`. This creates the coordinator agent with `multiagent: coordinator` config, listing the specialists in its callable roster.
+| Card | Coordinator | Specialists | Deliverable |
+|------|-------------|-------------|-------------|
+| **A — Deal Desk** *(wired & ready)* | Senior Partner | Pricing · Legal · Technical Fit · Competitive Intel | Branded proposal `.docx` |
+| **B — M&A Diligence Lite** | M&A Lead | Financial · Legal · Tech Stack · People & Culture | Diligence memo `.docx` |
+| **C — Hire-to-Onboard** | Onboarding Lead | Recruiter · IT · Buddy Match · Welcome Packet | Day-1 readiness pack `.docx` |
 
-3. **Upload the skills.** Run `python upload_skills.py`. This packages the custom skills in `skills/` and uploads them via the Skills API. Each specialist gets the skill that matches its domain.
+## 🎯 Stretch goals
 
-4. **Run the deal.** Run `python run_deal_desk.py`. This:
-   - Uploads the synthetic RFP (`synthetic-data/rfp-acme-corp.md`) as a file
-   - Starts a session against the coordinator
-   - Asks the coordinator to produce a full proposal response
-   - Streams the events so you can watch the parallel thread fan-out
-   - Saves the final docx to `outputs/proposal-response.docx`
+See [`stretch-goals.md`](./stretch-goals.md):
 
-By minute 30 you have a Word document in `outputs/`, generated by a coordinator + specialists who each used their own skill.
+- 🎨 **Firm-voice skill** — codify your own brand/writing voice
+- 🧑‍⚖️ **Critic sub-agent** — a 5th agent reviews the draft before it's finalised (`stretch_critic_subagent.py`)
+- 🧠 **Memory across deals** — coordinator remembers past wins and reuses them
+- 🔌 **Synthetic MCP** — wire a fake CRM to the pricing specialist
 
-## Stretch goals (20 min)
+## 🤝 Contributing
 
-See [`stretch-goals.md`](./stretch-goals.md). The big ones:
+This is a hands-on demo of multi-agent orchestration — ideas, scenario cards, and PRs welcome. If it helped you understand coordinator/specialist architectures, **⭐ star it** so others find it.
 
-- **Custom firm-voice skill** — codify your own firm's voice (every services firm has one)
-- **Critic sub-agent** — add a fifth agent that reviews the coordinator's draft before it's finalised
-- **Memory across deals** — coordinator remembers past wins and re-uses the right ones
-- **Synthetic MCP for past wins** — wire up a fake CRM to the pricing specialist
+## 📄 License
 
-## Two-minute demo
-
-Two-monitor setup:
-- **Monitor 1:** the events stream from the coordinator session, scrolling. You'll see `session.thread_created` × 4, parallel `running`, then `agent.thread_message_received` flowing back. The visible parallelism IS the demo.
-- **Monitor 2:** open `outputs/proposal-response.docx`. Real document, branded, ready to send.
-
-Narrate the events stream while it runs. The room will get it.
-
-## What's in this folder
-
-```
-03-specialist-swarm/
-├── README.md
-├── scenario-cards.md
-├── stretch-goals.md
-├── requirements.txt
-├── create_specialists.py          (creates the sub-agents)
-├── create_coordinator.py          (creates the coordinator)
-├── upload_skills.py               (uploads custom skills via Skills API)
-├── run_deal_desk.py               (runs the full swarm against an RFP)
-├── stretch_critic_subagent.py     (stretch: critic agent)
-├── skills/                        (custom skills, one per specialist)
-│   ├── pricing-playbook/SKILL.md
-│   ├── legal-checklist/SKILL.md
-│   └── competitive-intel/SKILL.md
-└── synthetic-data/
-    ├── rfp-acme-corp.md           (the RFP that triggers the swarm)
-    ├── past-wins.json             (used by pricing specialist)
-    └── product-overview.md        (used by technical specialist)
-```
+MIT © [Manish Kumar](https://github.com/Manish567Kumar)
